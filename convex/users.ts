@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireAdmin } from "./model/auth";
 import { internal } from "./_generated/api";
@@ -29,6 +29,37 @@ export const getMe = query({
     }
 
     return { status: "unregistered" as const };
+  },
+});
+
+export const syncClerkProfile = internalMutation({
+  args: {
+    clerkId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, { clerkId, email, name }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .unique();
+    if (user) {
+      const patch: Record<string, string> = {};
+      if (email) patch.email = email;
+      if (name) patch.name = name;
+      if (Object.keys(patch).length > 0) await ctx.db.patch(user._id, patch);
+    }
+
+    const request = await ctx.db
+      .query("accountRequests")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .unique();
+    if (request) {
+      const patch: Record<string, string> = {};
+      if (email) patch.email = email;
+      if (name) patch.name = name;
+      if (Object.keys(patch).length > 0) await ctx.db.patch(request._id, patch);
+    }
   },
 });
 

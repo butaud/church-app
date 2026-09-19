@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as clerkWebhook from "../clerkWebhook.js";
 import type * as crons from "../crons.js";
 import type * as email from "../email.js";
+import type * as http from "../http.js";
 import type * as model_auth from "../model/auth.js";
 import type * as prayers from "../prayers.js";
 import type * as seed from "../seed.js";
@@ -23,8 +25,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  clerkWebhook: typeof clerkWebhook;
   crons: typeof crons;
   email: typeof email;
+  http: typeof http;
   "model/auth": typeof model_auth;
   prayers: typeof prayers;
   seed: typeof seed;
