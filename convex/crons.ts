@@ -3,9 +3,9 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-crons.cron(
+crons.hourly(
   "saturday volunteer reminders",
-  "0 16 * * 6",
+  { minuteUTC: 0 },
   internal.email.sendSaturdayReminders,
 );
 

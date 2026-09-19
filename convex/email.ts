@@ -35,12 +35,45 @@ export const getSignupsForDate = internalQuery({
   },
 });
 
+const CHURCH_TIME_ZONE = "America/Los_Angeles";
+
+function getLocalHourAndWeekday(date: Date): {
+  hour: number;
+  weekday: string;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CHURCH_TIME_ZONE,
+    weekday: "long",
+    hour: "numeric",
+    hour12: false,
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")!.value) % 24;
+  const weekday = parts.find((p) => p.type === "weekday")!.value;
+  return { hour, weekday };
+}
+
+function getLocalDateStr(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: CHURCH_TIME_ZONE,
+  }).format(date);
+}
+
+function addDaysToDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+// Runs hourly; Convex cron times are fixed UTC, so this checks the church's
+// local time on each run and only sends once it's actually 8am Saturday
+// there, which keeps the reminder at 8am local across DST changes.
 export const sendSaturdayReminders = internalAction({
   args: {},
   handler: async (ctx) => {
-    const tomorrow = new Date();
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    const date = tomorrow.toISOString().slice(0, 10);
+    const now = new Date();
+    const { hour, weekday } = getLocalHourAndWeekday(now);
+    if (weekday !== "Saturday" || hour !== 8) return;
+
+    const date = addDaysToDateStr(getLocalDateStr(now), 1);
 
     const recipients = await ctx.runQuery(internal.email.getSignupsForDate, {
       date,
