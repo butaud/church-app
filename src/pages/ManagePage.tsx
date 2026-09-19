@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 
 export function ManagePage() {
   return (
@@ -49,6 +50,24 @@ function PrayerListEditor() {
 function AccountsSection() {
   const users = useQuery(api.users.listUsers);
   const removeUser = useMutation(api.users.removeUser);
+  const setUserRole = useMutation(api.users.setUserRole);
+
+  async function handleSetRole(userId: Id<"users">, role: "admin" | "member") {
+    try {
+      await setUserRole({ userId, role });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not change role");
+    }
+  }
+
+  async function handleRemove(userId: Id<"users">, name: string) {
+    if (!confirm(`Remove ${name}'s account?`)) return;
+    try {
+      await removeUser({ userId });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not remove account");
+    }
+  }
 
   return (
     <section>
@@ -66,16 +85,29 @@ function AccountsSection() {
                 {u.role === "admin" ? ", admin" : ""})
               </span>
             </span>
-            <button
-              onClick={() => {
-                if (confirm(`Remove ${u.name}'s account?`)) {
-                  removeUser({ userId: u._id });
-                }
-              }}
-              className="text-sm text-red-600 hover:underline"
-            >
-              Remove
-            </button>
+            <div className="flex gap-3">
+              {u.role === "admin" ? (
+                <button
+                  onClick={() => handleSetRole(u._id, "member")}
+                  className="text-sm text-gray-600 hover:underline"
+                >
+                  Remove admin
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSetRole(u._id, "admin")}
+                  className="text-sm text-gray-600 hover:underline"
+                >
+                  Make admin
+                </button>
+              )}
+              <button
+                onClick={() => handleRemove(u._id, u.name)}
+                className="text-sm text-red-600 hover:underline"
+              >
+                Remove
+              </button>
+            </div>
           </li>
         ))}
         {users?.length === 0 && (

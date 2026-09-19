@@ -87,10 +87,32 @@ export const listUsers = query({
   },
 });
 
+async function countAdmins(ctx: { db: any }): Promise<number> {
+  const users = await ctx.db.query("users").collect();
+  return users.filter((u: any) => u.role === "admin").length;
+}
+
+export const setUserRole = mutation({
+  args: { userId: v.id("users"), role: v.union(v.literal("admin"), v.literal("member")) },
+  handler: async (ctx, { userId, role }) => {
+    await requireAdmin(ctx);
+    const target = await ctx.db.get(userId);
+    if (!target) throw new Error("User not found");
+    if (target.role === "admin" && role === "member" && (await countAdmins(ctx)) <= 1) {
+      throw new Error("There must be at least one admin");
+    }
+    await ctx.db.patch(userId, { role });
+  },
+});
+
 export const removeUser = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     await requireAdmin(ctx);
+    const target = await ctx.db.get(userId);
+    if (target?.role === "admin" && (await countAdmins(ctx)) <= 1) {
+      throw new Error("There must be at least one admin");
+    }
     const signups = await ctx.db
       .query("volunteerSignups")
       .withIndex("by_user", (q) => q.eq("userId", userId))
