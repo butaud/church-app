@@ -40,7 +40,7 @@ function RegisteredApp() {
     <BrowserRouter>
       <Nav isAdmin={isAdmin} />
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<HomePage isAdmin={isAdmin} />} />
         <Route
           path="/volunteering"
           element={<VolunteeringPage isAdmin={isAdmin} />}

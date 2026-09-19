@@ -7,44 +7,10 @@ import { getErrorMessage } from "../lib/errors";
 export function ManagePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-10 p-4">
-      <PrayerListEditor />
       <AccountsSection />
       <PendingRequestsSection />
       <InvitesSection />
     </div>
-  );
-}
-
-function PrayerListEditor() {
-  const items = useQuery(api.prayers.getPrayerList);
-  const update = useMutation(api.prayers.updatePrayerList);
-  const [draft, setDraft] = useState<string | null>(null);
-
-  const text = draft ?? (items ?? []).join("\n");
-
-  return (
-    <section>
-      <h2 className="mb-2 text-lg font-semibold text-gray-900">
-        Prayer list
-      </h2>
-      <p className="mb-2 text-xs text-gray-500">
-        One item per line. Supports **bold**, *italic*, and [text](url) links.
-      </p>
-      <textarea
-        className="h-40 w-full rounded-md border border-gray-300 p-2 text-sm"
-        value={text}
-        onChange={(e) => setDraft(e.target.value)}
-      />
-      <button
-        onClick={async () => {
-          await update({ items: text.split("\n") });
-          setDraft(null);
-        }}
-        className="mt-2 rounded-md bg-gray-900 px-3 py-1 text-sm text-white hover:bg-gray-700"
-      >
-        Save
-      </button>
-    </section>
   );
 }
 

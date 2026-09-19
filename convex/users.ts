@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireAdmin } from "./model/auth";
+import { internal } from "./_generated/api";
 
 export const getMe = query({
   args: {},
@@ -75,6 +76,12 @@ export const ensureAccount = mutation({
       status: "pending",
       createdAt: Date.now(),
     });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.email.notifyAdminsOfNewRequest,
+      { name, email },
+    );
   },
 });
 

@@ -27,8 +27,9 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 
-  prayerList: defineTable({
-    items: v.array(v.string()),
+  prayerItems: defineTable({
+    text: v.string(),
+    sortOrder: v.number(),
     updatedBy: v.string(),
     updatedAt: v.number(),
   }),

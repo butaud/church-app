@@ -35,6 +35,68 @@ export const getSignupsForDate = internalQuery({
   },
 });
 
+async function sendEmail(args: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  idempotencyKey: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_ADDRESS;
+  if (!apiKey || !from) {
+    console.error("Resend not configured; skipping email to", args.to);
+    return;
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": args.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from,
+      to: args.to,
+      subject: args.subject,
+      text: args.text,
+      html: args.html,
+    }),
+  });
+  if (!res.ok) {
+    console.error("Failed to send email to", args.to, await res.text());
+  }
+}
+
+export const listAdminEmails = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users
+      .filter((u) => u.role === "admin")
+      .map((u) => ({ email: u.email, name: u.name }));
+  },
+});
+
+export const notifyAdminsOfNewRequest = internalAction({
+  args: { name: v.string(), email: v.string() },
+  handler: async (ctx, { name, email }) => {
+    const admins = await ctx.runQuery(internal.email.listAdminEmails, {});
+    const appUrl = process.env.APP_URL ?? "";
+    const manageUrl = `${appUrl}/manage`;
+
+    for (const admin of admins) {
+      await sendEmail({
+        to: admin.email,
+        subject: "New account request",
+        text: `${name} (${email}) has requested access to the church app. Review it at ${manageUrl}.`,
+        html: `<p>${name} (${email}) has requested access to the church app.</p><p><a href="${manageUrl}">Review the request</a></p>`,
+        idempotencyKey: `new-request/${email}/${admin.email}`,
+      });
+    }
+  },
+});
+
 const CHURCH_TIME_ZONE = "America/Los_Angeles";
 
 function getLocalHourAndWeekday(date: Date): {
@@ -79,37 +141,15 @@ export const sendSaturdayReminders = internalAction({
       date,
     });
 
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM_ADDRESS;
-    if (!apiKey || !from) {
-      console.error("Resend not configured; skipping reminder emails");
-      return;
-    }
-
     for (const recipient of recipients) {
       const jobList = recipient.jobs.join(", ");
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "Idempotency-Key": `volunteer-reminder/${date}/${recipient.email}`,
-        },
-        body: JSON.stringify({
-          from,
-          to: recipient.email,
-          subject: "Volunteering reminder for tomorrow",
-          text: `Hi ${recipient.name},\n\nYou're signed up for ${jobList} tomorrow at Emmanuel Church.`,
-          html: `<p>Hi ${recipient.name},</p><p>You're signed up for <strong>${jobList}</strong> tomorrow at Emmanuel Church.</p>`,
-        }),
+      await sendEmail({
+        to: recipient.email,
+        subject: "Volunteering reminder for tomorrow",
+        text: `Hi ${recipient.name},\n\nYou're signed up for ${jobList} tomorrow at Emmanuel Church.`,
+        html: `<p>Hi ${recipient.name},</p><p>You're signed up for <strong>${jobList}</strong> tomorrow at Emmanuel Church.</p>`,
+        idempotencyKey: `volunteer-reminder/${date}/${recipient.email}`,
       });
-      if (!res.ok) {
-        console.error(
-          "Failed to send reminder to",
-          recipient.email,
-          await res.text(),
-        );
-      }
     }
   },
 });
