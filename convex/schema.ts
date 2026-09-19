@@ -23,6 +23,7 @@ export default defineSchema({
 
   invites: defineTable({
     email: v.string(),
+    displayName: v.optional(v.string()),
     invitedBy: v.string(),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
@@ -43,11 +44,13 @@ export default defineSchema({
   volunteerSignups: defineTable({
     date: v.string(),
     jobTypeId: v.id("jobTypes"),
-    userId: v.id("users"),
+    userId: v.optional(v.id("users")),
+    inviteId: v.optional(v.id("invites")),
     createdAt: v.number(),
   })
     .index("by_date", ["date"])
     .index("by_date_jobType", ["date", "jobTypeId"])
     .index("by_user", ["userId"])
-    .index("by_user_date", ["userId", "date"]),
+    .index("by_user_date", ["userId", "date"])
+    .index("by_invite", ["inviteId"]),
 });

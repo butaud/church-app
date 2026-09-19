@@ -32,9 +32,11 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
     startDate && endDate ? { startDate, endDate } : "skip",
   );
   const allUsers = useQuery(api.users.listUsers, isAdmin ? {} : "skip");
+  const allInvites = useQuery(api.users.listInvites, isAdmin ? {} : "skip");
 
   const signUp = useMutation(api.volunteering.signUp);
   const adminSignUp = useMutation(api.volunteering.adminSignUp);
+  const adminAssignInvite = useMutation(api.volunteering.adminAssignInvite);
   const cancelSignup = useMutation(api.volunteering.cancelSignup);
 
   const myUserId = me?.status === "active" ? me.user._id : null;
@@ -51,10 +53,16 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
   async function handleAdminAssign(
     date: string,
     jobTypeId: Id<"jobTypes">,
-    userId: Id<"users">,
+    selection: string,
   ) {
     try {
-      await adminSignUp({ date, jobTypeId, userId });
+      if (selection.startsWith("user:")) {
+        const userId = selection.slice("user:".length) as Id<"users">;
+        await adminSignUp({ date, jobTypeId, userId });
+      } else if (selection.startsWith("invite:")) {
+        const inviteId = selection.slice("invite:".length) as Id<"invites">;
+        await adminAssignInvite({ date, jobTypeId, inviteId });
+      }
     } catch (err) {
       alert(getErrorMessage(err, "Could not assign"));
     }
@@ -148,7 +156,14 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
                               key={s._id}
                               className="flex items-center justify-between gap-2 rounded bg-gray-100 px-2 py-1"
                             >
-                              <span>{s.userName}</span>
+                              <span>
+                                {s.userName}
+                                {s.isPendingInvite && (
+                                  <span className="ml-1 text-gray-400">
+                                    (invited)
+                                  </span>
+                                )}
+                              </span>
                               {(s.userId === myUserId || isAdmin) && (
                                 <button
                                   onClick={() =>
@@ -194,7 +209,7 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
         <ConfigureJobTypesDialog onClose={() => setConfigureOpen(false)} />
       )}
 
-      {assigning && allUsers && (
+      {assigning && allUsers && allInvites && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-lg">
             <h3 className="mb-3 text-base font-semibold text-gray-900">
@@ -204,12 +219,12 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
               className="mb-4 w-full rounded border border-gray-300 px-2 py-1 text-sm"
               defaultValue=""
               onChange={async (e) => {
-                const userId = e.target.value as Id<"users">;
-                if (!userId) return;
+                const selection = e.target.value;
+                if (!selection) return;
                 await handleAdminAssign(
                   assigning.date,
                   assigning.jobTypeId,
-                  userId,
+                  selection,
                 );
                 setAssigning(null);
               }}
@@ -218,8 +233,13 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
                 Choose a person
               </option>
               {allUsers.map((u) => (
-                <option key={u._id} value={u._id}>
+                <option key={u._id} value={`user:${u._id}`}>
                   {u.name}
+                </option>
+              ))}
+              {allInvites.map((inv) => (
+                <option key={inv._id} value={`invite:${inv._id}`}>
+                  {(inv.displayName ?? inv.email) + " (invited)"}
                 </option>
               ))}
             </select>

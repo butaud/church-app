@@ -132,7 +132,9 @@ function InvitesSection() {
   const invites = useQuery(api.users.listInvites);
   const createInvite = useMutation(api.users.createInvite);
   const revokeInvite = useMutation(api.users.revokeInvite);
+  const updateDisplayName = useMutation(api.users.updateInviteDisplayName);
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -144,12 +146,25 @@ function InvitesSection() {
         {invites?.map((inv) => (
           <li
             key={inv._id}
-            className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
+            className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
           >
-            <span>{inv.email}</span>
+            <span className="text-gray-500">{inv.email}</span>
+            <input
+              defaultValue={inv.displayName ?? ""}
+              placeholder="Display name (optional)"
+              className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+              onBlur={(e) => {
+                if (e.target.value !== (inv.displayName ?? "")) {
+                  updateDisplayName({
+                    inviteId: inv._id,
+                    displayName: e.target.value,
+                  });
+                }
+              }}
+            />
             <button
               onClick={() => revokeInvite({ inviteId: inv._id })}
-              className="text-sm text-red-600 hover:underline"
+              className="shrink-0 text-sm text-red-600 hover:underline"
             >
               Revoke
             </button>
@@ -167,12 +182,19 @@ function InvitesSection() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+        <input
+          placeholder="Display name (optional)"
+          className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
         <button
           onClick={async () => {
             setError(null);
             try {
-              await createInvite({ email });
+              await createInvite({ email, displayName });
               setEmail("");
+              setDisplayName("");
             } catch (err) {
               setError(getErrorMessage(err, "Could not invite"));
             }

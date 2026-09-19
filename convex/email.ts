@@ -11,27 +11,33 @@ export const getSignupsForDate = internalQuery({
       .collect();
     const jobTypes = await ctx.db.query("jobTypes").collect();
     const jobTypeMap = new Map(jobTypes.map((j) => [j._id, j.name]));
-    const users = await Promise.all(
-      [...new Set(signups.map((s) => s.userId))].map((id) => ctx.db.get(id)),
-    );
+    const userIds = [...new Set(signups.map((s) => s.userId).filter(Boolean))];
+    const inviteIds = [
+      ...new Set(signups.map((s) => s.inviteId).filter(Boolean)),
+    ];
+    const users = await Promise.all(userIds.map((id) => ctx.db.get(id!)));
+    const invites = await Promise.all(inviteIds.map((id) => ctx.db.get(id!)));
     const userMap = new Map(users.filter(Boolean).map((u) => [u!._id, u!]));
+    const inviteMap = new Map(invites.filter(Boolean).map((i) => [i!._id, i!]));
 
-    const byUser = new Map<
+    const byRecipient = new Map<
       string,
       { email: string; name: string; jobs: string[] }
     >();
     for (const s of signups) {
-      const user = userMap.get(s.userId);
-      if (!user) continue;
-      const entry = byUser.get(user._id) ?? {
-        email: user.email,
-        name: user.name,
+      const user = s.userId ? userMap.get(s.userId) : undefined;
+      const invite = s.inviteId ? inviteMap.get(s.inviteId) : undefined;
+      if (!user && !invite) continue;
+      const key = user ? `user:${user._id}` : `invite:${invite!._id}`;
+      const entry = byRecipient.get(key) ?? {
+        email: user ? user.email : invite!.email,
+        name: user ? user.name : (invite!.displayName ?? invite!.email),
         jobs: [] as string[],
       };
       entry.jobs.push(jobTypeMap.get(s.jobTypeId) ?? "a volunteer slot");
-      byUser.set(user._id, entry);
+      byRecipient.set(key, entry);
     }
-    return [...byUser.values()];
+    return [...byRecipient.values()];
   },
 });
 

@@ -59,12 +59,24 @@ export const ensureAccount = mutation({
       .unique();
 
     if (invite) {
-      await ctx.db.insert("users", {
+      const newUserId = await ctx.db.insert("users", {
         clerkId: identity.subject,
         email,
         name,
         role: "member",
       });
+
+      const inviteSignups = await ctx.db
+        .query("volunteerSignups")
+        .withIndex("by_invite", (q) => q.eq("inviteId", invite._id))
+        .collect();
+      for (const signup of inviteSignups) {
+        await ctx.db.patch(signup._id, {
+          userId: newUserId,
+          inviteId: undefined,
+        });
+      }
+
       await ctx.db.delete(invite._id);
       return;
     }
@@ -179,8 +191,8 @@ export const listInvites = query({
 });
 
 export const createInvite = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
+  args: { email: v.string(), displayName: v.optional(v.string()) },
+  handler: async (ctx, { email, displayName }) => {
     const admin = await requireAdmin(ctx);
     const normalized = email.trim().toLowerCase();
     if (!normalized) throw new ConvexError("Email is required");
@@ -199,9 +211,18 @@ export const createInvite = mutation({
 
     await ctx.db.insert("invites", {
       email: normalized,
+      displayName: displayName?.trim() || undefined,
       invitedBy: admin._id,
       createdAt: Date.now(),
     });
+  },
+});
+
+export const updateInviteDisplayName = mutation({
+  args: { inviteId: v.id("invites"), displayName: v.string() },
+  handler: async (ctx, { inviteId, displayName }) => {
+    await requireAdmin(ctx);
+    await ctx.db.patch(inviteId, { displayName: displayName.trim() || undefined });
   },
 });
 
@@ -209,6 +230,13 @@ export const revokeInvite = mutation({
   args: { inviteId: v.id("invites") },
   handler: async (ctx, { inviteId }) => {
     await requireAdmin(ctx);
+    const signups = await ctx.db
+      .query("volunteerSignups")
+      .withIndex("by_invite", (q) => q.eq("inviteId", inviteId))
+      .collect();
+    for (const signup of signups) {
+      await ctx.db.delete(signup._id);
+    }
     await ctx.db.delete(inviteId);
   },
 });
