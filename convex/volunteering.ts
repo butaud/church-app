@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireAdmin, requireUser } from "./model/auth";
 import type { Id } from "./_generated/dataModel";
 
@@ -17,8 +17,8 @@ export const createJobType = mutation({
   handler: async (ctx, { name, capacity }) => {
     await requireAdmin(ctx);
     const trimmed = name.trim();
-    if (!trimmed) throw new Error("Name is required");
-    if (capacity < 1) throw new Error("Capacity must be at least 1");
+    if (!trimmed) throw new ConvexError("Name is required");
+    if (capacity < 1) throw new ConvexError("Capacity must be at least 1");
     const jobTypes = await ctx.db.query("jobTypes").collect();
     const maxOrder = jobTypes.reduce((max, j) => Math.max(max, j.sortOrder), -1);
     await ctx.db.insert("jobTypes", {
@@ -34,8 +34,8 @@ export const updateJobType = mutation({
   handler: async (ctx, { jobTypeId, name, capacity }) => {
     await requireAdmin(ctx);
     const trimmed = name.trim();
-    if (!trimmed) throw new Error("Name is required");
-    if (capacity < 1) throw new Error("Capacity must be at least 1");
+    if (!trimmed) throw new ConvexError("Name is required");
+    if (capacity < 1) throw new ConvexError("Capacity must be at least 1");
     await ctx.db.patch(jobTypeId, { name: trimmed, capacity });
   },
 });
@@ -129,7 +129,7 @@ async function assertCapacityAvailable(
   jobTypeId: Id<"jobTypes">,
 ) {
   const jobType = await ctx.db.get(jobTypeId);
-  if (!jobType) throw new Error("Job type not found");
+  if (!jobType) throw new ConvexError("Job type not found");
   const existing = await ctx.db
     .query("volunteerSignups")
     .withIndex("by_date_jobType", (q: any) =>
@@ -137,7 +137,7 @@ async function assertCapacityAvailable(
     )
     .collect();
   if (existing.length >= jobType.capacity) {
-    throw new Error(`${jobType.name} is full for ${date}`);
+    throw new ConvexError(`${jobType.name} is full for ${date}`);
   }
   return existing;
 }
@@ -146,10 +146,10 @@ export const signUp = mutation({
   args: { date: v.string(), jobTypeId: v.id("jobTypes") },
   handler: async (ctx, { date, jobTypeId }) => {
     const user = await requireUser(ctx);
-    if (date < todayStr()) throw new Error("That date has already passed");
+    if (date < todayStr()) throw new ConvexError("That date has already passed");
     const existing = await assertCapacityAvailable(ctx, date, jobTypeId);
     if (existing.some((s: any) => s.userId === user._id)) {
-      throw new Error("You are already signed up for this slot");
+      throw new ConvexError("You are already signed up for this slot");
     }
     await ctx.db.insert("volunteerSignups", {
       date,
@@ -166,7 +166,7 @@ export const adminSignUp = mutation({
     await requireAdmin(ctx);
     const existing = await assertCapacityAvailable(ctx, date, jobTypeId);
     if (existing.some((s: any) => s.userId === userId)) {
-      throw new Error("That person is already signed up for this slot");
+      throw new ConvexError("That person is already signed up for this slot");
     }
     await ctx.db.insert("volunteerSignups", {
       date,
@@ -184,7 +184,7 @@ export const cancelSignup = mutation({
     const signup = await ctx.db.get(signupId);
     if (!signup) return;
     if (signup.userId !== user._id && user.role !== "admin") {
-      throw new Error("You can only cancel your own signups");
+      throw new ConvexError("You can only cancel your own signups");
     }
     await ctx.db.delete(signupId);
   },

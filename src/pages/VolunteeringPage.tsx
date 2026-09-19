@@ -9,6 +9,7 @@ import {
   toDateStr,
 } from "../lib/sundays";
 import { ConfigureJobTypesDialog } from "./ConfigureJobTypesDialog";
+import { getErrorMessage } from "../lib/errors";
 
 export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
   const now = new Date();
@@ -43,7 +44,7 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
     try {
       await signUp({ date, jobTypeId });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not sign up");
+      alert(getErrorMessage(err, "Could not sign up"));
     }
   }
 
@@ -55,7 +56,7 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
     try {
       await adminSignUp({ date, jobTypeId, userId });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not assign");
+      alert(getErrorMessage(err, "Could not assign"));
     }
   }
 

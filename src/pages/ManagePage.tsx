@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { getErrorMessage } from "../lib/errors";
 
 export function ManagePage() {
   return (
@@ -56,7 +57,7 @@ function AccountsSection() {
     try {
       await setUserRole({ userId, role });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not change role");
+      alert(getErrorMessage(err, "Could not change role"));
     }
   }
 
@@ -65,7 +66,7 @@ function AccountsSection() {
     try {
       await removeUser({ userId });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not remove account");
+      alert(getErrorMessage(err, "Could not remove account"));
     }
   }
 
@@ -207,7 +208,7 @@ function InvitesSection() {
               await createInvite({ email });
               setEmail("");
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Could not invite");
+              setError(getErrorMessage(err, "Could not invite"));
             }
           }}
           className="rounded-md bg-gray-900 px-3 py-1 text-sm text-white hover:bg-gray-700"

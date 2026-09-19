@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireAdmin } from "./model/auth";
 
 export const getMe = query({
@@ -97,9 +97,9 @@ export const setUserRole = mutation({
   handler: async (ctx, { userId, role }) => {
     await requireAdmin(ctx);
     const target = await ctx.db.get(userId);
-    if (!target) throw new Error("User not found");
+    if (!target) throw new ConvexError("User not found");
     if (target.role === "admin" && role === "member" && (await countAdmins(ctx)) <= 1) {
-      throw new Error("There must be at least one admin");
+      throw new ConvexError("There must be at least one admin");
     }
     await ctx.db.patch(userId, { role });
   },
@@ -111,7 +111,7 @@ export const removeUser = mutation({
     await requireAdmin(ctx);
     const target = await ctx.db.get(userId);
     if (target?.role === "admin" && (await countAdmins(ctx)) <= 1) {
-      throw new Error("There must be at least one admin");
+      throw new ConvexError("There must be at least one admin");
     }
     const signups = await ctx.db
       .query("volunteerSignups")
@@ -141,7 +141,7 @@ export const approveRequest = mutation({
   handler: async (ctx, { requestId }) => {
     await requireAdmin(ctx);
     const request = await ctx.db.get(requestId);
-    if (!request) throw new Error("Request not found");
+    if (!request) throw new ConvexError("Request not found");
     await ctx.db.insert("users", {
       clerkId: request.clerkId,
       email: request.email,
@@ -157,7 +157,7 @@ export const denyRequest = mutation({
   handler: async (ctx, { requestId }) => {
     await requireAdmin(ctx);
     const request = await ctx.db.get(requestId);
-    if (!request) throw new Error("Request not found");
+    if (!request) throw new ConvexError("Request not found");
     await ctx.db.patch(requestId, { status: "denied" });
   },
 });
@@ -176,19 +176,19 @@ export const createInvite = mutation({
   handler: async (ctx, { email }) => {
     const admin = await requireAdmin(ctx);
     const normalized = email.trim().toLowerCase();
-    if (!normalized) throw new Error("Email is required");
+    if (!normalized) throw new ConvexError("Email is required");
 
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", normalized))
       .unique();
-    if (existingUser) throw new Error("That email already has an account");
+    if (existingUser) throw new ConvexError("That email already has an account");
 
     const existingInvite = await ctx.db
       .query("invites")
       .withIndex("by_email", (q) => q.eq("email", normalized))
       .unique();
-    if (existingInvite) throw new Error("That email is already invited");
+    if (existingInvite) throw new ConvexError("That email is already invited");
 
     await ctx.db.insert("invites", {
       email: normalized,
