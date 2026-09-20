@@ -22,11 +22,14 @@ export const verifyAndSync = internalAction({
     let event: any;
     try {
       const wh = new Webhook(secret);
-      event = wh.verify(payload, {
+      // svix's verify() only validates the signature and returns undefined;
+      // it doesn't hand back the parsed payload, so parse it ourselves.
+      wh.verify(payload, {
         "svix-id": svixId,
         "svix-timestamp": svixTimestamp,
         "svix-signature": svixSignature,
       });
+      event = JSON.parse(payload);
     } catch (err) {
       console.error("Invalid Clerk webhook signature", err);
       return { ok: false, status: 400 };
