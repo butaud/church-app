@@ -1,7 +1,9 @@
 import { SignInButton, SignUpButton } from "@clerk/react";
 import { Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export function LandingPage() {
+  usePageTitle();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
       <h1 className="text-2xl font-semibold text-gray-900">

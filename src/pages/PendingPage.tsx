@@ -1,6 +1,8 @@
 import { SignOutButton } from "@clerk/react";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export function PendingPage({ denied }: { denied: boolean }) {
+  usePageTitle(denied ? "Request Denied" : "Pending Approval");
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
       <h1 className="text-xl font-semibold text-gray-900">

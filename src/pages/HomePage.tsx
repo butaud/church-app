@@ -2,8 +2,10 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { formatDateLong } from "../lib/sundays";
 import { PrayerList } from "./PrayerList";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export function HomePage({ isAdmin }: { isAdmin: boolean }) {
+  usePageTitle("App");
   const mySignups = useQuery(api.volunteering.listMyUpcomingSignups);
 
   return (

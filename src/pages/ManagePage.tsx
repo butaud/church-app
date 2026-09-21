@@ -3,8 +3,10 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getErrorMessage } from "../lib/errors";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export function ManagePage() {
+  usePageTitle("Manage");
   return (
     <div className="mx-auto max-w-2xl space-y-10 p-4">
       <AccountsSection />

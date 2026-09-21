@@ -10,8 +10,10 @@ import {
 } from "../lib/sundays";
 import { ConfigureJobTypesDialog } from "./ConfigureJobTypesDialog";
 import { getErrorMessage } from "../lib/errors";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
+  usePageTitle("Volunteering");
   const now = new Date();
   const [year, setYear] = useState(now.getUTCFullYear());
   const [month, setMonth] = useState(now.getUTCMonth());

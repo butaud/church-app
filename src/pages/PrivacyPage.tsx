@@ -1,4 +1,7 @@
+import { usePageTitle } from "../lib/usePageTitle";
+
 export function PrivacyPage() {
+  usePageTitle("Privacy Policy");
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4 text-sm text-gray-800">
       <h1 className="text-xl font-semibold text-gray-900">Privacy Policy</h1>

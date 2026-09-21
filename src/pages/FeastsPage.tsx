@@ -1,4 +1,7 @@
+import { usePageTitle } from "../lib/usePageTitle";
+
 export function FeastsPage() {
+  usePageTitle("Feasts");
   return (
     <div className="mx-auto max-w-2xl p-4">
       <p className="text-sm text-gray-500">
