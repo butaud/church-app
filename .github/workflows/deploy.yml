@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Convex functions and build client
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: pnpm build:production
+
+      - name: Add SPA rewrite rules
+        run: cp deploy/.htaccess dist/.htaccess
+
+      - name: Publish to DreamHost
+        uses: burnett01/rsync-deployments@7.0.2
+        with:
+          switches: -avzr --delete
+          path: dist/
+          remote_path: ${{ vars.DREAMHOST_REMOTE_PATH }}
+          remote_host: ${{ vars.DREAMHOST_SSH_HOST }}
+          remote_user: ${{ vars.DREAMHOST_SSH_USER }}
+          remote_key: ${{ secrets.DREAMHOST_SSH_PRIVATE_KEY }}

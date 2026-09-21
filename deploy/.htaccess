@@ -1,0 +1,11 @@
+# SPA fallback: serve index.html for any path that isn't a real file or
+# directory, so client-side routes (e.g. /feasts/abc123) work on refresh
+# and direct links instead of 404ing. Equivalent to wrangler.toml's
+# not_found_handling = "single-page-application" on the Cloudflare setup.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

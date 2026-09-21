@@ -8,7 +8,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 - Convex (database, server functions, cron jobs)
 - Clerk (auth), wired to Convex via `ConvexProviderWithClerk`
 - Resend (email), sent from a Convex internal action
-- Cloudflare Workers (static hosting via Workers Assets)
+- Static hosting on DreamHost (same host as `emmanuel.org`, so subdomains like `app.emmanuel.org` don't need any DNS delegation), published by a GitHub Actions workflow. A Cloudflare Workers setup (`wrangler.toml`, `church.butaud.com`) still exists from an earlier iteration; see the Deployment section.
 
 ## Local development
 
@@ -30,6 +30,31 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 8. Run `npx convex dev` (watch mode) and `pnpm dev` in separate terminals.
 
 ## Deployment
+
+### DreamHost via GitHub Actions (current)
+
+`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — promote by fast-forwarding/merging `main` into `release` when ready). It runs `pnpm build:production` (same Convex-deploy-then-build step as below) and rsyncs `dist/` over SSH to DreamHost, after copying `deploy/.htaccess` into it for SPA routing (DreamHost is Apache-based, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare).
+
+Configure in the GitHub repo (Settings → Secrets and variables → Actions):
+
+**Secrets:**
+- `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (same one used for Cloudflare, if that's still around)
+- `DREAMHOST_SSH_PRIVATE_KEY` — private key for a keypair whose public half is authorized on the DreamHost shell user for this site
+
+**Variables:**
+- `VITE_CLERK_PUBLISHABLE_KEY` — production Clerk publishable key
+- `DREAMHOST_SSH_HOST` — the SSH hostname DreamHost gives you for this user (visible in the DreamHost panel under the shell user's settings)
+- `DREAMHOST_SSH_USER` — the DreamHost shell username
+- `DREAMHOST_REMOTE_PATH` — target directory on the server for this subdomain (e.g. wherever `app.emmanuel.org` is configured to serve from in the DreamHost panel)
+
+Also needs, one-time, in the DreamHost panel: the subdomain (e.g. `app.emmanuel.org`) created and pointed at that directory, with SSH access enabled for the user and its public key added. None of this touches DNS for the rest of `emmanuel.org`.
+
+Once this is confirmed live, update `APP_URL` on the production Convex deployment (currently `https://church.butaud.com`) to the new domain, since it's used to build links in emails:
+```
+npx convex env set APP_URL https://app.emmanuel.org --prod
+```
+
+### Cloudflare Workers (earlier setup, may be retired)
 
 Connect this repository to Cloudflare (Workers → Create → connect to Git) with:
 
