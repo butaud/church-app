@@ -9,8 +9,20 @@ import { HomePage } from "./pages/HomePage";
 import { VolunteeringPage } from "./pages/VolunteeringPage";
 import { FeastsPage } from "./pages/FeastsPage";
 import { ManagePage } from "./pages/ManagePage";
+import { PrivacyPage } from "./pages/PrivacyPage";
 
 function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/*" element={<Gate />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function Gate() {
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (isLoading) return null;
@@ -37,7 +49,7 @@ function RegisteredApp() {
   const isAdmin = me.user.role === "admin";
 
   return (
-    <BrowserRouter>
+    <>
       <Nav isAdmin={isAdmin} />
       <Routes>
         <Route path="/" element={<HomePage isAdmin={isAdmin} />} />
@@ -52,7 +64,7 @@ function RegisteredApp() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }
 

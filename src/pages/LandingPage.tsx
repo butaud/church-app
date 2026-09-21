@@ -1,4 +1,5 @@
 import { SignInButton, SignUpButton } from "@clerk/react";
+import { Link } from "react-router-dom";
 
 export function LandingPage() {
   return (
@@ -22,6 +23,9 @@ export function LandingPage() {
           </button>
         </SignUpButton>
       </div>
+      <Link to="/privacy" className="text-xs text-gray-400 hover:underline">
+        Privacy policy
+      </Link>
     </div>
   );
 }
