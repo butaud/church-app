@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { usePageTitle } from "../lib/usePageTitle";
 import { getErrorMessage } from "../lib/errors";
 import { formatDateLong, toDateStr } from "../lib/sundays";
+import { formatTimeLabel } from "../lib/time";
+import { SaveStatus, type SaveState } from "../components/SaveStatus";
 import { FeastSlotEditor } from "./FeastSlotEditor";
 import { FeastSlotViewer } from "./FeastSlotViewer";
 
 export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
   const { eventId } = useParams();
+  const location = useLocation();
   const data = useQuery(
     api.feasts.getEvent,
     eventId ? { eventId: eventId as Id<"feastEvents"> } : "skip",
@@ -19,7 +22,9 @@ export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
 
   usePageTitle(data?.event.title ?? "Feasts");
 
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(
+    Boolean((location.state as { startEditing?: boolean } | null)?.startEditing),
+  );
 
   if (data === undefined || me === undefined) return null;
   if (data === null) {
@@ -30,44 +35,51 @@ export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
     );
   }
 
-  const { event, categories, slots } = data;
+  const { event, slots } = data;
   const myUserId = me.status === "active" ? me.user._id : null;
   const isPast = event.date < toDateStr(new Date());
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{event.title}</h1>
-          <p className="text-sm text-gray-500">
-            {formatDateLong(event.date)}
-            {event.time && ` at ${event.time}`}
-          </p>
-        </div>
+        {!editMode && (
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">{event.title}</h1>
+            <p className="text-sm text-gray-500">
+              {formatDateLong(event.date)}
+              {event.time && ` at ${formatTimeLabel(event.time)}`}
+            </p>
+          </div>
+        )}
         {isAdmin && (
-          <button
-            onClick={() => setEditMode((m) => !m)}
-            className="shrink-0 rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100"
-          >
-            {editMode ? "Done editing" : "Edit event"}
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setEditMode((m) => !m)}
+              className="shrink-0 rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100"
+            >
+              {editMode ? "Done editing" : "Edit event"}
+            </button>
+            {!editMode && (
+              <NotifyMembersButton
+                eventId={event._id}
+                lastNotifiedAt={event.lastNotifiedAt}
+              />
+            )}
+          </div>
         )}
       </div>
 
-      {event.description && (
+      {!editMode && event.description && (
         <p className="text-sm text-gray-800">{event.description}</p>
       )}
-
-      {isAdmin && !editMode && <NotifyMembersButton eventId={event._id} lastNotifiedAt={event.lastNotifiedAt} />}
 
       {editMode ? (
         <>
           <EventEditForm event={event} />
-          <FeastSlotEditor eventId={event._id} categories={categories} slots={slots} />
+          <FeastSlotEditor eventId={event._id} slots={slots} />
         </>
       ) : (
         <FeastSlotViewer
-          categories={categories}
           slots={slots}
           myUserId={myUserId}
           isAdmin={isAdmin}
@@ -164,16 +176,28 @@ function EventEditForm({
   const [time, setTime] = useState(event.time);
   const [description, setDescription] = useState(event.description);
   const [reminderEnabled, setReminderEnabled] = useState(event.reminderEnabled);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const impact = useQuery(
     api.feasts.eventDeletionImpact,
     confirmDelete ? { eventId: event._id } : "skip",
   );
 
-  async function handleSave() {
+  async function save(
+    overrides: Partial<{
+      title: string;
+      date: string;
+      time: string;
+      description: string;
+      reminderEnabled: boolean;
+    }> = {},
+  ) {
     setError(null);
+    setSaveState("saving");
+    if (clearTimer.current) clearTimeout(clearTimer.current);
     try {
       await updateEvent({
         eventId: event._id,
@@ -182,19 +206,27 @@ function EventEditForm({
         time,
         description,
         reminderEnabled,
+        ...overrides,
       });
+      setSaveState("saved");
+      clearTimer.current = setTimeout(() => setSaveState("idle"), 2000);
     } catch (err) {
+      setSaveState("error");
       setError(getErrorMessage(err, "Could not save"));
     }
   }
 
   return (
     <div className="space-y-2 rounded-md border border-gray-200 p-3">
+      <div className="flex items-center justify-end gap-2">
+        <SaveStatus state={saveState} />
+      </div>
       <div>
         <label className="mb-1 block text-xs text-gray-600">Title</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => save()}
           className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
         />
       </div>
@@ -204,16 +236,22 @@ function EventEditForm({
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => {
+              setDate(e.target.value);
+              save({ date: e.target.value });
+            }}
             className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
           />
         </div>
         <div className="flex-1">
           <label className="mb-1 block text-xs text-gray-600">Time</label>
           <input
+            type="time"
             value={time}
-            onChange={(e) => setTime(e.target.value)}
-            placeholder="6:00 PM"
+            onChange={(e) => {
+              setTime(e.target.value);
+              save({ time: e.target.value });
+            }}
             className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
           />
         </div>
@@ -223,6 +261,7 @@ function EventEditForm({
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          onBlur={() => save()}
           className="h-20 w-full rounded border border-gray-300 px-2 py-1 text-sm"
         />
       </div>
@@ -230,25 +269,22 @@ function EventEditForm({
         <input
           type="checkbox"
           checked={reminderEnabled}
-          onChange={(e) => setReminderEnabled(e.target.checked)}
+          onChange={(e) => {
+            setReminderEnabled(e.target.checked);
+            save({ reminderEnabled: e.target.checked });
+          }}
         />
         Email a reminder to signed-up people at 8am the day before
       </label>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="pt-1">
         <button
           onClick={() => setConfirmDelete(true)}
           className="text-sm text-red-600 hover:underline"
         >
           Delete event
-        </button>
-        <button
-          onClick={handleSave}
-          className="rounded-md bg-gray-900 px-3 py-1 text-sm text-white hover:bg-gray-700"
-        >
-          Save
         </button>
       </div>
 

@@ -20,57 +20,34 @@ type SlotDoc = {
   name: string;
   numberRequested?: number;
   allowExtraSignups: boolean;
-  categoryId?: Id<"feastCategories">;
   signups: Signup[];
 };
 
-type CategoryDoc = { _id: Id<"feastCategories">; name: string; sortOrder: number };
-
 export function FeastSlotViewer({
-  categories,
   slots,
   myUserId,
   isAdmin,
   isPast,
 }: {
-  categories: CategoryDoc[];
   slots: SlotDoc[];
   myUserId: Id<"users"> | null;
   isAdmin: boolean;
   isPast: boolean;
 }) {
-  const groups: { id: string; name: string | null; slots: SlotDoc[] }[] = [
-    { id: "uncategorized", name: null, slots: slots.filter((s) => !s.categoryId) },
-    ...categories.map((c) => ({
-      id: c._id,
-      name: c.name,
-      slots: slots.filter((s) => s.categoryId === c._id),
-    })),
-  ].filter((g) => g.slots.length > 0);
-
-  if (groups.length === 0) {
+  if (slots.length === 0) {
     return <p className="text-sm text-gray-500">No signup slots yet.</p>;
   }
 
   return (
-    <div className="space-y-4">
-      {groups.map((group) => (
-        <div key={group.id}>
-          {group.name && (
-            <h3 className="mb-1 text-sm font-medium text-gray-700">{group.name}</h3>
-          )}
-          <div className="space-y-2">
-            {group.slots.map((slot) => (
-              <SlotRow
-                key={slot._id}
-                slot={slot}
-                myUserId={myUserId}
-                isAdmin={isAdmin}
-                isPast={isPast}
-              />
-            ))}
-          </div>
-        </div>
+    <div className="space-y-2">
+      {slots.map((slot) => (
+        <SlotRow
+          key={slot._id}
+          slot={slot}
+          myUserId={myUserId}
+          isAdmin={isAdmin}
+          isPast={isPast}
+        />
       ))}
     </div>
   );

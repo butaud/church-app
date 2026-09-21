@@ -3,6 +3,7 @@ import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { formatDateLong } from "../lib/sundays";
+import { formatTimeLabel } from "../lib/time";
 import { usePageTitle } from "../lib/usePageTitle";
 
 export function FeastsPage({ isAdmin }: { isAdmin: boolean }) {
@@ -43,7 +44,7 @@ export function FeastsPage({ isAdmin }: { isAdmin: boolean }) {
       description: "",
       reminderEnabled: false,
     });
-    navigate(`/feasts/${eventId}`);
+    navigate(`/feasts/${eventId}`, { state: { startEditing: true } });
   }
 
   return (
@@ -82,7 +83,7 @@ export function FeastsPage({ isAdmin }: { isAdmin: boolean }) {
                   <span className="text-gray-500">
                     {" "}
                     — {formatDateLong(e.date)}
-                    {e.time && ` at ${e.time}`}
+                    {e.time && ` at ${formatTimeLabel(e.time)}`}
                   </span>
                   {e.hasSignup && (
                     <span className="ml-2 text-xs text-gray-500">
