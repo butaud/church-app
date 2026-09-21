@@ -9,4 +9,10 @@ crons.hourly(
   internal.email.sendSaturdayReminders,
 );
 
+crons.hourly(
+  "feast event reminders",
+  { minuteUTC: 0 },
+  internal.feastEmail.sendFeastReminders,
+);
+
 export default crons;

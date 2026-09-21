@@ -8,6 +8,7 @@ import { PendingPage } from "./pages/PendingPage";
 import { HomePage } from "./pages/HomePage";
 import { VolunteeringPage } from "./pages/VolunteeringPage";
 import { FeastsPage } from "./pages/FeastsPage";
+import { FeastEventPage } from "./pages/FeastEventPage";
 import { ManagePage } from "./pages/ManagePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 
@@ -57,7 +58,11 @@ function RegisteredApp() {
           path="/volunteering"
           element={<VolunteeringPage isAdmin={isAdmin} />}
         />
-        <Route path="/feasts" element={<FeastsPage />} />
+        <Route path="/feasts" element={<FeastsPage isAdmin={isAdmin} />} />
+        <Route
+          path="/feasts/:eventId"
+          element={<FeastEventPage isAdmin={isAdmin} />}
+        />
         <Route
           path="/manage"
           element={isAdmin ? <ManagePage /> : <Navigate to="/" replace />}

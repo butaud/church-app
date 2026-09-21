@@ -1,6 +1,12 @@
 import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { sendEmail } from "./model/resend";
+import {
+  addDaysToDateStr,
+  getLocalDateStr,
+  getLocalHourAndWeekday,
+} from "./model/time";
 
 export const getSignupsForDate = internalQuery({
   args: { date: v.string() },
@@ -41,39 +47,6 @@ export const getSignupsForDate = internalQuery({
   },
 });
 
-async function sendEmail(args: {
-  to: string;
-  subject: string;
-  text: string;
-  html: string;
-  idempotencyKey: string;
-}): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_ADDRESS;
-  if (!apiKey || !from) {
-    console.error("Resend not configured; skipping email to", args.to);
-    return;
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": args.idempotencyKey,
-    },
-    body: JSON.stringify({
-      from,
-      to: args.to,
-      subject: args.subject,
-      text: args.text,
-      html: args.html,
-    }),
-  });
-  if (!res.ok) {
-    console.error("Failed to send email to", args.to, await res.text());
-  }
-}
-
 export const listAdminEmails = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -102,34 +75,6 @@ export const notifyAdminsOfNewRequest = internalAction({
     }
   },
 });
-
-const CHURCH_TIME_ZONE = "America/Los_Angeles";
-
-function getLocalHourAndWeekday(date: Date): {
-  hour: number;
-  weekday: string;
-} {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: CHURCH_TIME_ZONE,
-    weekday: "long",
-    hour: "numeric",
-    hour12: false,
-  }).formatToParts(date);
-  const hour = Number(parts.find((p) => p.type === "hour")!.value) % 24;
-  const weekday = parts.find((p) => p.type === "weekday")!.value;
-  return { hour, weekday };
-}
-
-function getLocalDateStr(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: CHURCH_TIME_ZONE,
-  }).format(date);
-}
-
-function addDaysToDateStr(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
 
 // Runs hourly; Convex cron times are fixed UTC, so this checks the church's
 // local time on each run and only sends once it's actually 8am Saturday

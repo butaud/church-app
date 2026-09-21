@@ -108,6 +108,17 @@ export const ensureAccount = mutation({
         });
       }
 
+      const inviteFeastSignups = await ctx.db
+        .query("feastSignups")
+        .withIndex("by_invite", (q) => q.eq("inviteId", invite._id))
+        .collect();
+      for (const signup of inviteFeastSignups) {
+        await ctx.db.patch(signup._id, {
+          userId: newUserId,
+          inviteId: undefined,
+        });
+      }
+
       await ctx.db.delete(invite._id);
       return;
     }
@@ -168,6 +179,13 @@ export const removeUser = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const signup of signups) {
+      await ctx.db.delete(signup._id);
+    }
+    const feastSignups = await ctx.db
+      .query("feastSignups")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const signup of feastSignups) {
       await ctx.db.delete(signup._id);
     }
     await ctx.db.delete(userId);
@@ -266,6 +284,13 @@ export const revokeInvite = mutation({
       .withIndex("by_invite", (q) => q.eq("inviteId", inviteId))
       .collect();
     for (const signup of signups) {
+      await ctx.db.delete(signup._id);
+    }
+    const feastSignups = await ctx.db
+      .query("feastSignups")
+      .withIndex("by_invite", (q) => q.eq("inviteId", inviteId))
+      .collect();
+    for (const signup of feastSignups) {
       await ctx.db.delete(signup._id);
     }
     await ctx.db.delete(inviteId);
