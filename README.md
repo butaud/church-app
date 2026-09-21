@@ -35,7 +35,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 
 `.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — promote by fast-forwarding/merging `main` into `release` when ready). It runs `pnpm build:production` (same Convex-deploy-then-build step as below) and rsyncs `dist/` over SSH to DreamHost, after copying `deploy/.htaccess` into it for SPA routing (DreamHost is Apache-based, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare).
 
-Configure in the GitHub repo (Settings → Secrets and variables → Actions):
+The job targets a **`production` environment**, not repo-wide secrets/variables — that's the second, GitHub-enforced gate on top of the `release`-branch trigger (e.g. you can restrict which branches are allowed to deploy to that environment, or require a manual approval). Configure it under Settings → Environments → `production`:
 
 **Secrets:**
 - `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (same one used for Cloudflare, if that's still around)
