@@ -25,6 +25,7 @@ export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
   const [editMode, setEditMode] = useState(
     Boolean((location.state as { startEditing?: boolean } | null)?.startEditing),
   );
+  const [saveState, setSaveState] = useState<SaveState>("idle");
 
   if (data === undefined || me === undefined) return null;
   if (data === null) {
@@ -53,6 +54,7 @@ export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
         )}
         {isAdmin && (
           <div className="ml-auto flex items-center gap-2">
+            {editMode && <SaveStatus state={saveState} />}
             <button
               onClick={() => setEditMode((m) => !m)}
               className="shrink-0 rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100"
@@ -75,7 +77,7 @@ export function FeastEventPage({ isAdmin }: { isAdmin: boolean }) {
 
       {editMode ? (
         <>
-          <EventEditForm event={event} />
+          <EventEditForm event={event} onSaveStateChange={setSaveState} />
           <FeastSlotEditor eventId={event._id} slots={slots} />
         </>
       ) : (
@@ -157,6 +159,7 @@ function NotifyMembersButton({
 
 function EventEditForm({
   event,
+  onSaveStateChange,
 }: {
   event: {
     _id: Id<"feastEvents">;
@@ -166,6 +169,7 @@ function EventEditForm({
     description: string;
     reminderEnabled: boolean;
   };
+  onSaveStateChange: (state: SaveState) => void;
 }) {
   const navigate = useNavigate();
   const updateEvent = useMutation(api.feasts.updateEvent);
@@ -176,7 +180,6 @@ function EventEditForm({
   const [time, setTime] = useState(event.time);
   const [description, setDescription] = useState(event.description);
   const [reminderEnabled, setReminderEnabled] = useState(event.reminderEnabled);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,7 +199,7 @@ function EventEditForm({
     }> = {},
   ) {
     setError(null);
-    setSaveState("saving");
+    onSaveStateChange("saving");
     if (clearTimer.current) clearTimeout(clearTimer.current);
     try {
       await updateEvent({
@@ -208,19 +211,16 @@ function EventEditForm({
         reminderEnabled,
         ...overrides,
       });
-      setSaveState("saved");
-      clearTimer.current = setTimeout(() => setSaveState("idle"), 2000);
+      onSaveStateChange("saved");
+      clearTimer.current = setTimeout(() => onSaveStateChange("idle"), 2000);
     } catch (err) {
-      setSaveState("error");
+      onSaveStateChange("error");
       setError(getErrorMessage(err, "Could not save"));
     }
   }
 
   return (
     <div className="space-y-2 rounded-md border border-gray-200 p-3">
-      <div className="flex items-center justify-end gap-2">
-        <SaveStatus state={saveState} />
-      </div>
       <div>
         <label className="mb-1 block text-xs text-gray-600">Title</label>
         <input
