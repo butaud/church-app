@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getErrorMessage } from "../lib/errors";
+import { PersonPicker } from "../components/PersonPicker";
 
 export function FeastAssignDialog({
   slotId,
@@ -50,25 +51,14 @@ export function FeastAssignDialog({
         </h3>
 
         <label className="mb-1 block text-xs text-gray-600">Person</label>
-        <select
-          value={selection}
-          onChange={(e) => setSelection(e.target.value)}
-          className="mb-3 w-full rounded border border-gray-300 px-2 py-1 text-sm"
-        >
-          <option value="" disabled>
-            Choose a person
-          </option>
-          {users?.map((u) => (
-            <option key={u._id} value={`user:${u._id}`}>
-              {u.name}
-            </option>
-          ))}
-          {invites?.map((inv) => (
-            <option key={inv._id} value={`invite:${inv._id}`}>
-              {(inv.displayName ?? inv.email) + " (invited)"}
-            </option>
-          ))}
-        </select>
+        <div className="mb-3">
+          <PersonPicker
+            users={users}
+            invites={invites}
+            value={selection}
+            onChange={setSelection}
+          />
+        </div>
 
         <label className="mb-1 block text-xs text-gray-600">Quantity</label>
         <input

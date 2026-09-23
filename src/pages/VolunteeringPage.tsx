@@ -11,6 +11,7 @@ import {
 import { ConfigureJobTypesDialog } from "./ConfigureJobTypesDialog";
 import { getErrorMessage } from "../lib/errors";
 import { usePageTitle } from "../lib/usePageTitle";
+import { PersonPicker } from "../components/PersonPicker";
 
 export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
   usePageTitle("Volunteering");
@@ -211,40 +212,27 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
         <ConfigureJobTypesDialog onClose={() => setConfigureOpen(false)} />
       )}
 
-      {assigning && allUsers && allInvites && (
+      {assigning && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-lg">
             <h3 className="mb-3 text-base font-semibold text-gray-900">
               Assign a volunteer
             </h3>
-            <select
-              className="mb-4 w-full rounded border border-gray-300 px-2 py-1 text-sm"
-              defaultValue=""
-              onChange={async (e) => {
-                const selection = e.target.value;
-                if (!selection) return;
-                await handleAdminAssign(
-                  assigning.date,
-                  assigning.jobTypeId,
-                  selection,
-                );
-                setAssigning(null);
-              }}
-            >
-              <option value="" disabled>
-                Choose a person
-              </option>
-              {allUsers.map((u) => (
-                <option key={u._id} value={`user:${u._id}`}>
-                  {u.name}
-                </option>
-              ))}
-              {allInvites.map((inv) => (
-                <option key={inv._id} value={`invite:${inv._id}`}>
-                  {(inv.displayName ?? inv.email) + " (invited)"}
-                </option>
-              ))}
-            </select>
+            <div className="mb-4">
+              <PersonPicker
+                users={allUsers}
+                invites={allInvites}
+                value=""
+                onChange={async (selection) => {
+                  await handleAdminAssign(
+                    assigning.date,
+                    assigning.jobTypeId,
+                    selection,
+                  );
+                  setAssigning(null);
+                }}
+              />
+            </div>
             <div className="flex justify-end">
               <button
                 onClick={() => setAssigning(null)}
