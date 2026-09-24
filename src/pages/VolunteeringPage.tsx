@@ -84,6 +84,14 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
     setMonth(m);
   }
 
+  const isCurrentMonth =
+    year === now.getUTCFullYear() && month === now.getUTCMonth();
+
+  function goToCurrentMonth() {
+    setYear(now.getUTCFullYear());
+    setMonth(now.getUTCMonth());
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4">
       <div className="flex items-center justify-between">
@@ -103,6 +111,14 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
           >
             →
           </button>
+          {!isCurrentMonth && (
+            <button
+              onClick={goToCurrentMonth}
+              className="rounded-md border border-gray-300 px-2 py-1 text-sm hover:bg-gray-100"
+            >
+              This month
+            </button>
+          )}
         </div>
         {isAdmin && (
           <button
