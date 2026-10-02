@@ -7,8 +7,14 @@ import {
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { sendEmail } from "./model/resend";
-import { addDaysToDateStr, getLocalDateStr, getLocalHourAndWeekday } from "./model/time";
+import {
+  addDaysToDateStr,
+  getLocalDateStr,
+  getLocalHourAndWeekday,
+} from "./model/time";
+import { renderAnnouncement, type Announcement } from "./model/announcement";
 import { requireAdmin } from "./model/auth";
+import { escapeHtml } from "./model/html";
 
 export const getReminderRecipientsForDate = internalQuery({
   args: { date: v.string() },
@@ -73,7 +79,7 @@ export const sendFeastReminders = internalAction({
         to: recipient.email,
         subject: `Reminder: ${recipient.eventTitle} tomorrow`,
         text: `Hi ${recipient.name},\n\nThis is a reminder that you signed up to help with ${recipient.eventTitle} tomorrow at Emmanuel Church.`,
-        html: `<p>Hi ${recipient.name},</p><p>This is a reminder that you signed up to help with <strong>${recipient.eventTitle}</strong> tomorrow at Emmanuel Church.</p>`,
+        html: `<p>Hi ${escapeHtml(recipient.name)},</p><p>This is a reminder that you signed up to help with <strong>${escapeHtml(recipient.eventTitle)}</strong> tomorrow at Emmanuel Church.</p>`,
         idempotencyKey: `feast-reminder/${recipient.eventTitle}/${date}/${recipient.email}`,
       });
     }
@@ -112,15 +118,19 @@ export const notifyMembersOfEvent = action({
 
     const recipients = await ctx.runQuery(internal.feastEmail.listAllActiveEmails, {});
     const appUrl = process.env.APP_URL ?? "";
-    const eventUrl = `${appUrl}/feasts/${eventId}`;
+    const { subject, text, html } = renderAnnouncement(
+      event,
+      `${appUrl}/feasts/${eventId}`,
+    );
+    const sentAt = Date.now();
 
     for (const recipient of recipients) {
       await sendEmail({
         to: recipient.email,
-        subject: event.title,
-        text: `${event.title} is happening ${event.date} at ${event.time}. Sign up at ${eventUrl}.`,
-        html: `<p><strong>${event.title}</strong> is happening ${event.date} at ${event.time}.</p><p><a href="${eventUrl}">Sign up</a></p>`,
-        idempotencyKey: `feast-notify/${eventId}/${Date.now()}/${recipient.email}`,
+        subject,
+        text,
+        html,
+        idempotencyKey: `feast-notify/${eventId}/${sentAt}/${recipient.email}`,
       });
     }
 
@@ -130,7 +140,33 @@ export const notifyMembersOfEvent = action({
 
 export const getEventForNotify = internalQuery({
   args: { eventId: v.id("feastEvents") },
-  handler: async (ctx, { eventId }) => {
-    return await ctx.db.get(eventId);
+  handler: async (ctx, { eventId }): Promise<Announcement | null> => {
+    const event = await ctx.db.get(eventId);
+    if (!event) return null;
+    const slots = await ctx.db
+      .query("feastSlots")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect();
+    slots.sort((a, b) => a.sortOrder - b.sortOrder);
+    const withCounts = await Promise.all(
+      slots.map(async (slot) => {
+        const signups = await ctx.db
+          .query("feastSignups")
+          .withIndex("by_slot", (q) => q.eq("slotId", slot._id))
+          .collect();
+        return {
+          name: slot.name,
+          numberRequested: slot.numberRequested,
+          signedUp: signups.reduce((sum, s) => sum + s.quantity, 0),
+        };
+      }),
+    );
+    return {
+      title: event.title,
+      date: event.date,
+      time: event.time,
+      description: event.description,
+      slots: withCounts,
+    };
   },
 });
