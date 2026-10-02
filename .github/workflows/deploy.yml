@@ -34,12 +34,14 @@ jobs:
       - name: Add SPA rewrite rules
         run: cp deploy/.htaccess dist/.htaccess
 
-      - name: Publish to DreamHost
-        uses: burnett01/rsync-deployments@7.0.2
+      # The FTP account is restricted to the app's folder in cPanel, so this
+      # can't reach the WordPress site no matter what server-dir says.
+      - name: Publish to HostHuski
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          switches: -avzr --delete
-          path: dist/
-          remote_path: ${{ vars.DREAMHOST_REMOTE_PATH }}
-          remote_host: ${{ vars.DREAMHOST_SSH_HOST }}
-          remote_user: ${{ vars.DREAMHOST_SSH_USER }}
-          remote_key: ${{ secrets.DREAMHOST_SSH_PRIVATE_KEY }}
+          server: ${{ vars.FTP_SERVER }}
+          username: ${{ vars.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./dist/
+          server-dir: ./

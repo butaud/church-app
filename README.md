@@ -8,7 +8,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 - Convex (database, server functions, cron jobs)
 - Clerk (auth), wired to Convex via `ConvexProviderWithClerk`
 - Resend (email), sent from a Convex internal action
-- Static hosting on DreamHost (same host as `emmanuel.org`, so subdomains like `app.emmanuel.org` don't need any DNS delegation), published by a GitHub Actions workflow. A Cloudflare Workers setup (`wrangler.toml`, `church.butaud.com`) still exists from an earlier iteration; see the Deployment section.
+- Static hosting at `app.emmanuel.org` on HostHuski (the cPanel host that also runs the church's WordPress site), published by a GitHub Actions workflow. DNS for `emmanuel.org` is at DreamHost. A Cloudflare Workers setup (`wrangler.toml`, `church.butaud.com`) still exists from an earlier iteration; see the Deployment section.
 
 ## Local development
 
@@ -31,23 +31,26 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 
 ## Deployment
 
-### DreamHost via GitHub Actions (current)
+### HostHuski via GitHub Actions (current)
 
-`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — promote by fast-forwarding/merging `main` into `release` when ready). It runs `pnpm build:production` (same Convex-deploy-then-build step as below) and rsyncs `dist/` over SSH to DreamHost, after copying `deploy/.htaccess` into it for SPA routing (DreamHost is Apache-based, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare).
+`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — promote by fast-forwarding/merging `main` into `release` when ready). It runs `pnpm build:production` (same Convex-deploy-then-build step as below), copies `deploy/.htaccess` into `dist/` for SPA routing (the host is Apache/LiteSpeed, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare), and uploads `dist/` over FTPS. The upload is incremental and removes files that are no longer in the build; it tracks this with a `.ftp-deploy-sync-state.json` file it leaves in the target folder.
+
+One-time setup:
+- **cPanel → Domains**: `app.emmanuel.org` with its own document root (`public_html/app.emmanuel.org` — this host doesn't allow roots outside `public_html`), "Share document root" unchecked.
+- **DreamHost DNS**: an A record for `app` pointing at the HostHuski server's IP (the same one `www` uses).
+- **cPanel → SSL/TLS Status**: run AutoSSL for `app.emmanuel.org` once DNS resolves.
+- **cPanel → FTP Accounts**: an account whose directory is `public_html/app.emmanuel.org`. It's locked to that folder, which is what guarantees a deploy can never touch the WordPress site next to it.
 
 The job targets a **`production` environment**, not repo-wide secrets/variables — that's the second, GitHub-enforced gate on top of the `release`-branch trigger (e.g. you can restrict which branches are allowed to deploy to that environment, or require a manual approval). Configure it under Settings → Environments → `production`:
 
 **Secrets:**
 - `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (same one used for Cloudflare, if that's still around)
-- `DREAMHOST_SSH_PRIVATE_KEY` — private key for a keypair whose public half is authorized on the DreamHost shell user for this site
+- `FTP_PASSWORD` — the password for that FTP account
 
 **Variables:**
 - `VITE_CLERK_PUBLISHABLE_KEY` — production Clerk publishable key
-- `DREAMHOST_SSH_HOST` — the SSH hostname DreamHost gives you for this user (visible in the DreamHost panel under the shell user's settings)
-- `DREAMHOST_SSH_USER` — the DreamHost shell username
-- `DREAMHOST_REMOTE_PATH` — target directory on the server for this subdomain (e.g. wherever `app.emmanuel.org` is configured to serve from in the DreamHost panel)
-
-Also needs, one-time, in the DreamHost panel: the subdomain (e.g. `app.emmanuel.org`) created and pointed at that directory, with SSH access enabled for the user and its public key added. None of this touches DNS for the rest of `emmanuel.org`.
+- `FTP_SERVER` — `s2.hosthuski.com`. cPanel suggests `ftp.emmanuel.org`, but that name doesn't exist in DreamHost's DNS, and the FTPS certificate is issued for the server's own hostname anyway.
+- `FTP_USERNAME` — the full FTP username as cPanel shows it (e.g. `deploy@app.emmanuel.org`)
 
 Once this is confirmed live, update `APP_URL` on the production Convex deployment (currently `https://church.butaud.com`) to the new domain, since it's used to build links in emails:
 ```
