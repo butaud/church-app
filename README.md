@@ -8,7 +8,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 - Convex (database, server functions, cron jobs)
 - Clerk (auth), wired to Convex via `ConvexProviderWithClerk`
 - Resend (email), sent from a Convex internal action
-- Static hosting at `app.emmanuel.org` on HostHuski (the cPanel host that also runs the church's WordPress site), published by a GitHub Actions workflow. DNS for `emmanuel.org` is at DreamHost. A Cloudflare Workers setup (`wrangler.toml`, `church.butaud.com`) still exists from an earlier iteration; see the Deployment section.
+- Static hosting at `app.emmanuel.org` on HostHuski (the cPanel host that also runs the church's WordPress site), published by a GitHub Actions workflow. DNS for `emmanuel.org` is at DreamHost. A Cloudflare Worker (`wrangler.toml`) serves the staging environment at `church.butaud.com`, built from `main` against dev services; see the Deployment section.
 
 ## Local development
 
@@ -33,7 +33,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 
 ### HostHuski via GitHub Actions (current)
 
-`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — promote by fast-forwarding/merging `main` into `release` when ready). It runs `pnpm build:production` (same Convex-deploy-then-build step as below), copies `deploy/.htaccess` into `dist/` for SPA routing (the host is Apache/LiteSpeed, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare), and uploads `dist/` over FTPS. The upload is incremental and removes files that are no longer in the build; it tracks this with a `.ftp-deploy-sync-state.json` file it leaves in the target folder.
+`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — it deploys to staging instead; see below. Promote by fast-forwarding/merging `main` into `release` once it looks right on staging). It runs `pnpm build:production` (same Convex-deploy-then-build step as below), copies `deploy/.htaccess` into `dist/` for SPA routing (the host is Apache/LiteSpeed, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare), and uploads `dist/` over FTPS. The upload is incremental and removes files that are no longer in the build; it tracks this with a `.ftp-deploy-sync-state.json` file it leaves in the target folder.
 
 One-time setup:
 - **cPanel → Domains**: `app.emmanuel.org` with its own document root (`public_html/app.emmanuel.org` — this host doesn't allow roots outside `public_html`), "Share document root" unchecked.
@@ -44,7 +44,7 @@ One-time setup:
 The job targets a **`production` environment**, not repo-wide secrets/variables — that's the second, GitHub-enforced gate on top of the `release`-branch trigger (e.g. you can restrict which branches are allowed to deploy to that environment, or require a manual approval). Configure it under Settings → Environments → `production`:
 
 **Secrets:**
-- `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (same one used for Cloudflare, if that's still around)
+- `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (not the staging key used by Cloudflare)
 - `FTP_PASSWORD` — the password for that FTP account
 
 **Variables:**
@@ -52,31 +52,36 @@ The job targets a **`production` environment**, not repo-wide secrets/variables 
 - `FTP_SERVER` — `s2.hosthuski.com`. cPanel suggests `ftp.emmanuel.org`, but that name doesn't exist in DreamHost's DNS, and the FTPS certificate is issued for the server's own hostname anyway.
 - `FTP_USERNAME` — the full FTP username as cPanel shows it (e.g. `deploy@app.emmanuel.org`)
 
-Once this is confirmed live, update `APP_URL` on the production Convex deployment (currently `https://church.butaud.com`) to the new domain, since it's used to build links in emails:
+The production Convex deployment's `APP_URL` must be the production domain, since it's used to build links in emails:
 ```
 npx convex env set APP_URL https://app.emmanuel.org --prod
 ```
 
-### Cloudflare Workers (earlier setup, may be retired)
+### Staging on Cloudflare Workers (`church.butaud.com`)
+
+Every push to `main` builds and deploys a Cloudflare Worker at `church.butaud.com`, backed entirely by **dev** services: the dev Convex deployment (`charming-caterpillar-171`, shared with `npx convex dev`, so local work and staging share data), the dev Clerk instance, and a dev Resend key. Check changes here, then promote `main` to `release` for production.
 
 Connect this repository to Cloudflare (Workers → Create → connect to Git) with:
 
 - Build command: `pnpm build:production`
 - Deploy command: `npx wrangler deploy`
+- Production branch `main`, with non-production branch builds turned off (otherwise a stray branch push deploys to staging).
 - Build output is `dist/`, served as static assets per `wrangler.toml` (SPA fallback to `index.html`).
 
-`pnpm build:production` runs `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL --cmd 'vite build'`, which deploys the Convex functions to production first and bakes the resulting deployment URL into the client build.
+`pnpm build:production` runs `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL --cmd 'vite build'`. With a dev deploy key this deploys the Convex functions to the dev deployment and bakes its URL into the client build.
 
 Cloudflare **build environment variables** (dashboard → project → Settings → Environment variables) should only contain:
-- `VITE_CLERK_PUBLISHABLE_KEY` (production Clerk publishable key)
-- `CONVEX_DEPLOY_KEY` (a production deploy key from the Convex dashboard)
+- `VITE_CLERK_PUBLISHABLE_KEY` (the **dev** Clerk instance's `pk_test_...` key)
+- `CONVEX_DEPLOY_KEY` (a **dev** deploy key from the Convex dashboard)
 
-Everything else (`CLERK_JWT_ISSUER_DOMAIN`, `CLERK_WEBHOOK_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_ADDRESS`, `APP_URL`) belongs on the **production Convex deployment** via `convex env set` (or the Convex dashboard), never in Cloudflare's build environment, since that would expose them to the client bundle. Set the Resend/APP_URL ones with:
+Everything else (`CLERK_JWT_ISSUER_DOMAIN`, `CLERK_WEBHOOK_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_ADDRESS`, `APP_URL`) belongs on the dev Convex deployment via `convex env set` (or the Convex dashboard), never in Cloudflare's build environment, since that would expose them to the client bundle. For staging, `APP_URL` is `https://church.butaud.com` and the sender name should say "(dev)" so test emails can't be mistaken for real ones. The same variables, with production values, go on the production deployment; set the Resend/APP_URL ones with:
 ```
 node scripts/set-convex-env.cjs --prod
 ```
-`CLERK_JWT_ISSUER_DOMAIN` (the production Clerk instance's Frontend API URL) and `CLERK_WEBHOOK_SECRET` (from Clerk's Webhooks page, once the `/clerk-webhook` endpoint is registered there) have to be set manually, since they come from the production Clerk instance rather than `.env.local`.
+`CLERK_JWT_ISSUER_DOMAIN` (the Clerk instance's Frontend API URL) and `CLERK_WEBHOOK_SECRET` (from Clerk's Webhooks page, once the `/clerk-webhook` endpoint is registered there) have to be set manually, since they come from Clerk rather than `.env.local`. Do this once per environment, using that environment's Clerk instance.
 
-The production Clerk instance also needs the same session token customization as step 5 above, plus a webhook endpoint pointed at `<production-convex-site-url>/clerk-webhook` subscribed to `user.created` and `user.updated`, so profile edits (name/email) sync into the app.
+Each Clerk instance (dev and production) also needs the same session token customization as step 5 above, plus a webhook endpoint pointed at `<convex-site-url>/clerk-webhook` subscribed to `user.created` and `user.updated`, so profile edits (name/email) sync into the app.
 
-**If reminder or notification emails silently don't arrive**, check `npx convex env list --prod` for all five vars above — a missing `RESEND_API_KEY`/`RESEND_FROM_ADDRESS` fails silently (logs an error, doesn't throw) rather than breaking the request.
+Dev Clerk is a separate user pool from production, so you sign up on staging as a new user. New sign-ups without an invite land in `accountRequests` as pending; see step 7 above for making the first admin.
+
+**If reminder or notification emails silently don't arrive**, check `npx convex env list` (add `--prod` for production) for all five vars above — a missing `RESEND_API_KEY`/`RESEND_FROM_ADDRESS` fails silently (logs an error, doesn't throw) rather than breaking the request.
