@@ -1,6 +1,7 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireAdmin } from "./model/auth";
+import { emailsMatch } from "./model/email";
 import { internal } from "./_generated/api";
 
 export const getMe = query({
@@ -84,10 +85,9 @@ export const ensureAccount = mutation({
       .unique();
     if (existingRequest) return;
 
-    const invite = await ctx.db
-      .query("invites")
-      .withIndex("by_email", (q) => q.eq("email", email.toLowerCase()))
-      .unique();
+    const invite = (await ctx.db.query("invites").collect()).find((i) =>
+      emailsMatch(i.email, email),
+    );
 
     if (invite) {
       const newUserId = await ctx.db.insert("users", {
@@ -243,23 +243,23 @@ export const createInvite = mutation({
   args: { email: v.string(), displayName: v.optional(v.string()) },
   handler: async (ctx, { email, displayName }) => {
     const admin = await requireAdmin(ctx);
-    const normalized = email.trim().toLowerCase();
-    if (!normalized) throw new ConvexError("Email is required");
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) throw new ConvexError("Email is required");
 
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", normalized))
-      .unique();
+    // These tables are small, so scan them rather than index on a normalized
+    // form; see normalizeEmail for which variants count as the same address.
+    const existingUser = (await ctx.db.query("users").collect()).find((u) =>
+      emailsMatch(u.email, trimmed),
+    );
     if (existingUser) throw new ConvexError("That email already has an account");
 
-    const existingInvite = await ctx.db
-      .query("invites")
-      .withIndex("by_email", (q) => q.eq("email", normalized))
-      .unique();
+    const existingInvite = (await ctx.db.query("invites").collect()).find((i) =>
+      emailsMatch(i.email, trimmed),
+    );
     if (existingInvite) throw new ConvexError("That email is already invited");
 
     await ctx.db.insert("invites", {
-      email: normalized,
+      email: trimmed,
       displayName: displayName?.trim() || undefined,
       invitedBy: admin._id,
       createdAt: Date.now(),
