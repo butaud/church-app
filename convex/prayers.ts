@@ -49,3 +49,13 @@ export const deletePrayerItem = mutation({
     await ctx.db.delete(itemId);
   },
 });
+
+export const reorderPrayerItems = mutation({
+  args: { itemIds: v.array(v.id("prayerItems")) },
+  handler: async (ctx, { itemIds }) => {
+    await requireAdmin(ctx);
+    for (const [index, itemId] of itemIds.entries()) {
+      await ctx.db.patch(itemId, { sortOrder: index });
+    }
+  },
+});
