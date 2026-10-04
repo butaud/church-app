@@ -11,13 +11,13 @@ jobs:
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -37,7 +37,7 @@ jobs:
       # The FTP account is restricted to the app's folder in cPanel, so this
       # can't reach the WordPress site no matter what server-dir says.
       - name: Publish to HostHuski
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ vars.FTP_SERVER }}
           username: ${{ vars.FTP_USERNAME }}
