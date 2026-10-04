@@ -133,16 +133,16 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
 
       {jobTypes === undefined || signups === undefined ? null : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th className="border-b border-gray-200 p-2 text-left font-medium text-gray-600">
+                <th className="sticky left-0 z-10 border-b border-r border-gray-300 bg-gray-50 p-2 text-left font-medium text-gray-600">
                   Date
                 </th>
                 {jobTypes.map((jt) => (
                   <th
                     key={jt._id}
-                    className="border-b border-gray-200 p-2 text-left font-medium text-gray-600"
+                    className="border-b border-gray-300 p-2 text-left font-medium text-gray-600"
                   >
                     {jt.name}
                   </th>
@@ -152,7 +152,7 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
             <tbody>
               {sundays.map((date) => (
                 <tr key={date}>
-                  <td className="border-b border-gray-100 p-2 align-top font-medium text-gray-800">
+                  <td className="sticky left-0 z-10 border-b border-r border-gray-300 bg-gray-50 p-2 align-top font-medium text-gray-800">
                     {formatDateShort(date)}
                   </td>
                   {jobTypes.map((jt) => {
@@ -167,7 +167,7 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
                     return (
                       <td
                         key={jt._id}
-                        className="border-b border-gray-100 p-2 align-top"
+                        className="border-b border-gray-300 p-2 align-top"
                       >
                         <div className="space-y-1">
                           {cellSignups.map((s) => (
