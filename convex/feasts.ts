@@ -66,6 +66,38 @@ export const listUpcomingEvents = query({
   },
 });
 
+export const listMyUpcomingSignups = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    const today = todayStr();
+    const signups = await ctx.db
+      .query("feastSignups")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    const rows = await Promise.all(
+      signups.map(async (s) => {
+        const slot = await ctx.db.get(s.slotId);
+        if (!slot) return null;
+        const event = await ctx.db.get(slot.eventId);
+        if (!event || event.date < today) return null;
+        return {
+          _id: s._id,
+          eventId: event._id,
+          eventTitle: event.title,
+          date: event.date,
+          time: event.time,
+          slotName: slot.name,
+          quantity: s.quantity,
+        };
+      }),
+    );
+    return rows
+      .filter((r) => r !== null)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  },
+});
+
 export const listPastEvents = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, { paginationOpts }) => {

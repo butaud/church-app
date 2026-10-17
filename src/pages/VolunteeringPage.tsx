@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -7,6 +8,8 @@ import {
   sundaysInMonth,
   formatDateShort,
   toDateStr,
+  monthParam,
+  parseMonthParam,
 } from "../lib/sundays";
 import { ConfigureJobTypesDialog } from "./ConfigureJobTypesDialog";
 import { getErrorMessage } from "../lib/errors";
@@ -16,8 +19,11 @@ import { PersonPicker } from "../components/PersonPicker";
 export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
   usePageTitle("Volunteering");
   const now = new Date();
-  const [year, setYear] = useState(now.getUTCFullYear());
-  const [month, setMonth] = useState(now.getUTCMonth());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { year, month } = parseMonthParam(searchParams.get("month")) ?? {
+    year: now.getUTCFullYear(),
+    month: now.getUTCMonth(),
+  };
   const [configureOpen, setConfigureOpen] = useState(false);
   const [assigning, setAssigning] = useState<{
     date: string;
@@ -81,16 +87,14 @@ export function VolunteeringPage({ isAdmin }: { isAdmin: boolean }) {
       m = 0;
       y += 1;
     }
-    setYear(y);
-    setMonth(m);
+    setSearchParams({ month: monthParam(y, m) }, { replace: true });
   }
 
   const isCurrentMonth =
     year === now.getUTCFullYear() && month === now.getUTCMonth();
 
   function goToCurrentMonth() {
-    setYear(now.getUTCFullYear());
-    setMonth(now.getUTCMonth());
+    setSearchParams({}, { replace: true });
   }
 
   return (

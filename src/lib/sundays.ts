@@ -44,3 +44,19 @@ export function monthLabel(year: number, month: number): string {
     timeZone: "UTC",
   });
 }
+
+// "YYYY-MM" query param value for a month (0-indexed), as used by
+// /volunteering?month=
+export function monthParam(year: number, month: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+export function parseMonthParam(
+  value: string | null,
+): { year: number; month: number } | null {
+  const match = value?.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const month = Number(match[2]) - 1;
+  if (month < 0 || month > 11) return null;
+  return { year: Number(match[1]), month };
+}
