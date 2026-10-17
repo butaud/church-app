@@ -217,6 +217,11 @@ export const approveRequest = mutation({
       role: "member",
     });
     await ctx.db.delete(request._id);
+
+    await ctx.scheduler.runAfter(0, internal.email.notifyUserOfApproval, {
+      name: request.name,
+      email: request.email,
+    });
   },
 });
 
