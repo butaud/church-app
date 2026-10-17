@@ -33,7 +33,7 @@ Prayer requests, Sunday volunteer signups, and feast/event signups for Emmanuel 
 
 ### HostHuski via GitHub Actions (current)
 
-`.github/workflows/deploy.yml` runs on every push to the **`release`** branch (deliberately not `main`, so pushing to `main` never touches the live site — it deploys to staging instead; see below. Promote by fast-forwarding/merging `main` into `release` once it looks right on staging). It runs `pnpm build:production` (same Convex-deploy-then-build step as below), copies `deploy/.htaccess` into `dist/` for SPA routing (the host is Apache/LiteSpeed, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare), and uploads `dist/` over FTPS. The upload is incremental and removes files that are no longer in the build; it tracks this with a `.ftp-deploy-sync-state.json` file it leaves in the target folder.
+`.github/workflows/deploy.yml` runs on every push to `main`, but the deploy job targets the `production` environment, which requires a manual approval, so nothing touches the live site until you approve it. The same push deploys to staging right away (see below): check the change there, then approve the waiting run (Actions → the run → Review deployments → Approve). To bundle several changes, just don't approve yet: a newer push replaces the run that's still waiting (`concurrency` in the workflow), and approving the latest one ships everything since the last production deploy. Rejecting a run doesn't lose anything either, since the next one includes it. A run left waiting for 30 days fails; to redeploy without a new commit, use Run workflow (`workflow_dispatch`), which also waits for approval. It runs `pnpm build:production` (same Convex-deploy-then-build step as below), copies `deploy/.htaccess` into `dist/` for SPA routing (the host is Apache/LiteSpeed, so this replaces what `wrangler.toml`'s `not_found_handling` did on Cloudflare), and uploads `dist/` over FTPS. The upload is incremental and removes files that are no longer in the build; it tracks this with a `.ftp-deploy-sync-state.json` file it leaves in the target folder.
 
 One-time setup:
 - **cPanel → Domains**: `app.emmanuel.org` with its own document root (`public_html/app.emmanuel.org` — this host doesn't allow roots outside `public_html`), "Share document root" unchecked.
@@ -41,7 +41,11 @@ One-time setup:
 - **cPanel → SSL/TLS Status**: run AutoSSL for `app.emmanuel.org` once DNS resolves.
 - **cPanel → FTP Accounts**: an account whose directory is `public_html/app.emmanuel.org`. It's locked to that folder, which is what guarantees a deploy can never touch the WordPress site next to it.
 
-The job targets a **`production` environment**, not repo-wide secrets/variables — that's the second, GitHub-enforced gate on top of the `release`-branch trigger (e.g. you can restrict which branches are allowed to deploy to that environment, or require a manual approval). Configure it under Settings → Environments → `production`:
+The job targets a **`production` environment**, not repo-wide secrets/variables, so the secrets aren't available to the job until a deploy is approved. Configure it under Settings → Environments → `production`:
+
+**Protection rules:**
+- Required reviewers: yourself (leave "Prevent self-review" unchecked so you can approve your own pushes)
+- Deployment branches and tags: Selected branches → `main`
 
 **Secrets:**
 - `CONVEX_DEPLOY_KEY` — a production deploy key from the Convex dashboard (not the staging key used by Cloudflare)
@@ -59,7 +63,7 @@ npx convex env set APP_URL https://app.emmanuel.org --prod
 
 ### Staging on Cloudflare Workers (`church.butaud.com`)
 
-Every push to `main` builds and deploys a Cloudflare Worker at `church.butaud.com`, backed entirely by **dev** services: the dev Convex deployment (`charming-caterpillar-171`, shared with `npx convex dev`, so local work and staging share data), the dev Clerk instance, and a dev Resend key. Check changes here, then promote `main` to `release` for production.
+Every push to `main` builds and deploys a Cloudflare Worker at `church.butaud.com`, backed entirely by **dev** services: the dev Convex deployment (`charming-caterpillar-171`, shared with `npx convex dev`, so local work and staging share data), the dev Clerk instance, and a dev Resend key. Check changes here, then approve the waiting production deploy.
 
 Connect this repository to Cloudflare (Workers → Create → connect to Git) with:
 

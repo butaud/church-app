@@ -22,7 +22,7 @@ secrets for this app (Clerk secret key, Resend API key, Convex deploy keys).
 
 | Provider | Used for | Plan | Status |
 |---|---|---|---|
-| GitHub | Source, `main`/`release` branches, deploy Actions workflow | Add officers as collaborators (Settings -> Collaborators). Optionally move the repo to a free GitHub org for role separation. | |
+| GitHub | Source, deploy Actions workflow (approval-gated `production` environment) | Add officers as collaborators (Settings -> Collaborators), and as required reviewers on the `production` environment if they should approve deploys. Optionally move the repo to a free GitHub org for role separation. | |
 | Google Cloud | OAuth client for "Continue with Google" | IAM & Admin -> IAM -> Grant Access to officers' Google accounts (Owner for a second owner). No Workspace needed. Set the OAuth consent screen to "In production" (basic scopes only, no verification review needed) so the 100 test-user cap does not apply. | |
 | Cloudflare | Staging worker built from `main`, DNS for `emmanuel.org` if moved | Members invites are account-wide. Use a dedicated church account (new account under a church email, or a second account), move the worker and DNS there, and invite officers. Most manual move: needs a Worker redeploy and, for DNS, a zone move. | |
 | Convex | Backend, database, crons (dev and prod deployments) | Move the project to a new church team (project settings -> move to a different team), rename the team (e.g. "Emmanuel Church"), then invite officers via Team Settings -> Members. | |
