@@ -2,6 +2,7 @@ import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { sendEmail } from "./model/resend";
+import { escapeHtml } from "./model/html";
 import {
   addDaysToDateStr,
   getLocalDateStr,
@@ -73,6 +74,21 @@ export const notifyAdminsOfNewRequest = internalAction({
         idempotencyKey: `new-request/${email}/${admin.email}`,
       });
     }
+  },
+});
+
+export const notifyUserOfApproval = internalAction({
+  args: { name: v.string(), email: v.string() },
+  handler: async (_ctx, { name, email }) => {
+    const appUrl = process.env.APP_URL ?? "";
+
+    await sendEmail({
+      to: email,
+      subject: "Your account has been approved",
+      text: `Hi ${name},\n\nAn administrator has approved your account for the Emmanuel Church app. You can sign in at ${appUrl}.`,
+      html: `<p>Hi ${escapeHtml(name)},</p><p>An administrator has approved your account for the Emmanuel Church app.</p><p><a href="${appUrl}">Open the app</a></p>`,
+      idempotencyKey: `request-approved/${email}`,
+    });
   },
 });
 
